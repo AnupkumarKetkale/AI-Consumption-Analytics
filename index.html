@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Consumption Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: an enterprise FinOps cockpit for J&J finance, IT and AI owners; calm, dense, exact
+   IDEA an SAP Fiori-style launchpad app: shell bar, side navigation, object pages, and a side panel for every drill-down
+   PICTURE the Command centre: pool, run-rate, attribution and integration health on one screen, each tile opening its detail
+   COLOUR neutral ground #f4f6f8, white surfaces, Incture shell #24272A, Incture blue #0087D5 for marks; green/amber/red reserved for integration status
+   TYPE Inter (Arial fallback), tabular figures
+   LAYOUT shell + 232px side nav + page with context bar; drawer slides in from the right; below 900px nav becomes a top strip */
+:root{color-scheme:light dark;--bg:light-dark(#f4f6f8,#121417);--surf:light-dark(#ffffff,#1b1e22);--surf2:light-dark(#f7f9fb,#22262b);--line:light-dark(#e1e5ea,#2f343b);--ink:light-dark(#1d2329,#e8ebee);--mute:light-dark(#5d6772,#9ba5b0);--blue:light-dark(#0087D5,#3aa6e8);--blueD:light-dark(#006aa8,#6bbdf0);--blueS:light-dark(#e5f3fc,#15314a);--shell:#24272A;--api:light-dark(#18794e,#4cc38a);--apiS:light-dark(#e3f5ec,#123526);--dev:light-dark(#975a00,#f0a640);--devS:light-dark(#fff2d9,#3a2a10);--no:light-dark(#c22f2f,#ff7b72);--noS:light-dark(#fde8e8,#3d1a1a);--hatch:light-dark(#c5ccd3,#4a5159);--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08)}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 Inter,Arial,Helvetica,sans-serif;overflow-x:clip;display:flex;flex-direction:column}
+button,select{font:inherit;color:inherit}
+.shell{background:var(--shell);color:#fff;display:flex;align-items:center;gap:14px;padding:0 16px;height:52px;flex:none}
+.logo{font-weight:700;font-size:19px;letter-spacing:-.02em}
+.logo b{color:#3aa6e8}
+.shell .app{font-size:14px;color:#cfd5db;border-left:1px solid #474c52;padding-left:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shell .sp{margin-left:auto}
+.badge{font-size:12px;background:#3a3f45;color:#e9ecef;padding:4px 10px;border-radius:12px;white-space:nowrap}
+.av{width:30px;height:30px;border-radius:50%;background:#0087D5;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.body{flex:1;display:flex;min-height:0}
+nav.side{width:232px;flex:none;background:var(--surf);border-right:1px solid var(--line);padding:12px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nv{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:10px;align-items:center;padding:9px 12px;border-radius:6px;font-size:14px;color:var(--mute);min-height:40px}
+.nv svg{width:18px;height:18px;flex:none}
+.nv:hover{background:var(--surf2);color:var(--ink)}
+.nv:focus-visible{outline:2px solid var(--blue)}
+.nv.on{background:var(--blueS);color:var(--blueD);font-weight:600}
+.side .grp{font-size:12px;color:var(--mute);padding:14px 12px 4px}
+.side .note{margin-top:auto;font-size:12px;color:var(--mute);padding:12px;border-top:1px solid var(--line)}
+main{flex:1;overflow-y:auto;min-width:0}
+.ctx{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:5px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.ctx .lab{font-size:12px;color:var(--mute);margin-right:6px}
+.seg{display:inline-flex;background:var(--surf);border:1px solid var(--line);border-radius:6px;padding:2px}
+.seg button{all:unset;cursor:pointer;padding:6px 12px;border-radius:4px;font-size:13px;white-space:nowrap;min-height:20px}
+.seg button:focus-visible{outline:2px solid var(--blue)}
+.seg button.on{background:var(--blue);color:#fff;font-weight:600}
+select{appearance:none;background:var(--surf) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%235d6772' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 10px center;border:1px solid var(--line);border-radius:6px;padding:7px 32px 7px 10px;font-size:14px;min-height:36px}
+select:focus-visible{outline:2px solid var(--blue)}
+.page{padding:14px 24px 32px}
+.g3w{grid-template-columns:minmax(0,1.7fr) minmax(0,.85fr) minmax(0,1.15fr)}
+@media(max-width:1560px){.g3w{grid-template-columns:repeat(2,minmax(0,1fr))}.g3w>:first-child{grid-column:1/-1}}
+.ph{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:26px;line-height:1.15;margin:0;letter-spacing:-.02em;font-weight:700}
+.ph p{margin:4px 0 0;color:var(--mute)}
+.g{display:grid;gap:14px}
+.g6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g2{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.g2e{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:10px}
+.ch{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ch h2{font-size:15px;margin:0;font-weight:600}
+.ch p{margin:2px 0 0;font-size:12px;color:var(--mute)}
+.lnk{all:unset;cursor:pointer;color:var(--blue);font-size:13px;font-weight:500;white-space:nowrap}
+.lnk:focus-visible{outline:2px solid var(--blue)}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surf);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column;gap:6px;min-height:138px}
+.tile:hover{border-color:var(--blue)}
+.tile:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.tile .l{font-size:12px;color:var(--mute);font-weight:500}
+.tile .v{font-size:clamp(20px,1.9vw,26px);font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile .c{font-size:12px;color:var(--mute)}
+.tile .ft{margin-top:auto;display:flex;gap:4px;flex-wrap:wrap}
+.meter{height:6px;background:var(--surf2);border-radius:3px;overflow:hidden;display:flex}
+.meter i{display:block;height:100%;background:var(--blue)}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap;line-height:1.5}
+.chip svg{width:11px;height:11px;flex:none}
+.api{color:var(--api);background:var(--apiS)}
+.dev{color:var(--dev);background:var(--devS)}
+.no{color:var(--no);background:var(--noS)}
+.neu{color:var(--mute);background:var(--surf2)}
+.lst{display:flex;flex-direction:column}
+.it{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.6fr) 96px 18px;gap:12px;align-items:center;padding:10px 6px;border-top:1px solid var(--line)}
+.it:first-child{border-top:0}
+.it:hover{background:var(--surf2)}
+.it:focus-visible{outline:2px solid var(--blue)}
+.it .nm{font-weight:500}
+.it .nm small{display:block;font-weight:400;color:var(--mute);font-size:12px}
+.it .val{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+.it .val small{display:block;font-weight:400;color:var(--mute);font-size:12px}
+.it .ar{color:var(--mute)}
+.bar{height:10px;background:var(--surf2);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--blue);border-radius:0 3px 3px 0}
+.al{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:28px minmax(0,1fr) 18px;gap:10px;padding:10px 6px;border-top:1px solid var(--line);align-items:start}
+.al:first-child{border-top:0}
+.al:hover{background:var(--surf2)}
+.al:focus-visible{outline:2px solid var(--blue)}
+.al .ic{width:28px;height:28px;border-radius:6px;display:grid;place-items:center}
+.al .ic svg{width:16px;height:16px}
+.al b{font-weight:600;display:block}
+.al span{font-size:12px;color:var(--mute)}
+.sev-h{background:var(--noS);color:var(--no)}
+.sev-m{background:var(--devS);color:var(--dev)}
+.sev-i{background:var(--blueS);color:var(--blueD)}
+.fig{position:relative;height:240px}
+.fig svg{position:absolute;inset:0;width:100%;height:100%}
+.fig.s{height:170px}
+.tip{position:absolute;pointer-events:none;background:var(--shell);color:#fff;font-size:12px;padding:6px 8px;border-radius:4px;white-space:nowrap;display:none;z-index:2}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-size:12px;color:var(--mute);font-weight:600;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surf2)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--surf2)}
+tr.click:focus-visible{outline:2px solid var(--blue)}
+tr.gap td{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--hatch) 30%,transparent) 6px 8px);color:var(--mute)}
+.lock{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;background:var(--surf2);border:1px dashed var(--line);border-radius:8px}
+.lock svg{width:20px;height:20px;flex:none;color:var(--mute);margin-top:2px}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;font-weight:600;font-size:13px;min-height:36px;background:var(--blue);color:#fff;white-space:nowrap}
+.btn.sec{background:var(--surf);color:var(--blueD);border:1px solid var(--line)}
+.btn:focus-visible{outline:2px solid var(--blueD);outline-offset:2px}
+.lv{display:flex;gap:4px;flex-wrap:wrap}
+.lv span{font-size:12px;padding:3px 8px;border-radius:4px;background:var(--surf2);color:var(--mute);display:inline-flex;gap:4px;align-items:center}
+.lv span.ok{background:var(--blueS);color:var(--blueD);font-weight:600}
+.lv svg{width:11px;height:11px}
+.prog{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.prog button{all:unset;box-sizing:border-box;cursor:pointer;border-radius:6px;padding:10px;background:var(--surf2);display:flex;flex-direction:column;gap:2px;border:1px solid transparent}
+.prog button:focus-visible{outline:2px solid var(--blue)}
+.prog button.done{background:var(--blueS)}
+.prog button.on{background:var(--blue);color:#fff}
+.prog small{font-size:11px;opacity:.8}
+.prog b{font-size:13px}
+.hc{display:flex;flex-direction:column;gap:4px}
+.hc .row{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:6px 4px;border-radius:4px;font-size:13px}
+.hc .row:hover{background:var(--surf2)}
+.hc .row:focus-visible{outline:2px solid var(--blue)}
+.hc .row.later{opacity:.5}
+.hc .row{align-items:flex-start}
+.hc .row>span:first-child{flex:1 1 auto}
+.hc .row>span:last-child,.hc h3>*{flex:none}
+.hcg{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))!important}
+.hc h3{margin:0 0 4px;display:flex;align-items:center;gap:6px;font-size:13px}
+.hc h3 .k{font-size:22px;font-weight:700}
+.ptabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto}
+.ptabs button{all:unset;cursor:pointer;padding:10px 14px;font-size:14px;border-bottom:2px solid transparent;color:var(--mute);white-space:nowrap;display:inline-flex;gap:6px;align-items:center}
+.ptabs button svg{width:12px;height:12px}
+.ptabs button.on{color:var(--ink);font-weight:600;border-color:var(--blue)}
+.ptabs button:focus-visible{outline:2px solid var(--blue)}
+.scrim{position:fixed;inset:0;background:rgba(16,20,24,.38);opacity:0;pointer-events:none;z-index:20}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surf);z-index:21;box-shadow:-8px 0 24px rgba(16,24,40,.18);transform:translateX(102%);display:flex;flex-direction:column}
+.drawer.on{transform:none}
+.dh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.dh .t{flex:1}
+.dh h2{margin:0;font-size:18px;letter-spacing:-.01em}
+.dh p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.ib{all:unset;cursor:pointer;width:36px;height:36px;display:grid;place-items:center;border-radius:6px;flex:none}
+.ib:hover{background:var(--surf2)}
+.ib:focus-visible{outline:2px solid var(--blue)}
+.ib svg{width:18px;height:18px}
+.db{padding:16px 20px 28px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.db h3{font-size:13px;margin:0 0 6px;color:var(--mute);font-weight:600}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kv div{background:var(--surf2);border-radius:6px;padding:10px}
+.kv span{display:block;font-size:12px;color:var(--mute)}
+.kv b{font-size:18px;font-variant-numeric:tabular-nums}
+.db ul{margin:0;padding-left:18px}
+.db li{margin-bottom:4px}
+code{font-size:12px;background:var(--surf2);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.spk{display:flex;align-items:flex-end;gap:3px;height:56px}
+.spk i{flex:1;background:var(--blue);border-radius:2px 2px 0 0}
+.pf{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:1px 7px 1px 6px;border-radius:10px;border:1px solid var(--line);background:var(--surf);color:var(--ink);white-space:nowrap;line-height:1.6;vertical-align:middle}
+.pf::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--pc)}
+.pf.p0{--pc:#8a949e}.pf.p1{--pc:#3aa6e8}.pf.p2{--pc:#503B96}.pf.p3{--pc:#24272A}
+:root[data-theme=dark] .pf.p3{--pc:#e8ebee}
+.pf.px{--pc:var(--no)}
+.pf.later{border-style:dashed;color:var(--mute);background:transparent}
+.tg{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-size:13px;min-height:36px}
+.tg .sw{width:34px;height:20px;border-radius:10px;background:var(--hatch);position:relative;flex:none}
+.tg .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.tg.on .sw{background:var(--blue)}
+.tg.on .sw::after{left:16px}
+.tg:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.final{font-size:12px;font-weight:600;color:var(--blueD);background:var(--blueS);padding:3px 9px;border-radius:10px;white-space:nowrap}
+.setup{position:fixed;inset:0;z-index:30;background:rgba(16,20,24,.55);display:none;place-items:center;padding:16px}
+.setup.on{display:grid}
+.sbox{background:var(--surf);border-radius:10px;width:min(1080px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.shd{padding:20px 24px 12px;border-bottom:1px solid var(--line)}
+.shd h2{margin:0;font-size:22px;letter-spacing:-.02em}
+.shd p{margin:4px 0 0;color:var(--mute)}
+.sbd{padding:16px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.sft{padding:14px 24px;border-top:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.su{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr);gap:16px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.su.off{background:var(--surf2)}
+.su.off .dp{opacity:.4;pointer-events:none}
+.cb{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.cb input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--blue);flex:none}
+.cb b{display:block}
+.cb small{color:var(--mute);font-size:12px}
+.dp{display:flex;flex-direction:column;gap:6px}
+.dseg{display:flex;flex-wrap:wrap;gap:4px}
+.dseg button small{display:block;font-size:10.5px;font-weight:500;opacity:.75}
+.dseg button{all:unset;cursor:pointer;text-align:center;font-size:12.5px;padding:5px 10px;border-radius:6px;border:1px solid var(--line);white-space:nowrap}
+.dseg button:focus-visible{outline:2px solid var(--blue)}
+.dseg button.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+.dseg button.in{background:var(--blueS);border-color:transparent}
+.dseg button:disabled{opacity:.45;cursor:not-allowed;text-decoration:line-through}
+.dp .meta{font-size:12px;color:var(--mute);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+@media(max-width:700px){.su{grid-template-columns:minmax(0,1fr)}}
+.foot{font-size:12px;color:var(--mute);margin-top:18px;max-width:980px}
+@media(prefers-reduced-motion:no-preference){.drawer{transition:transform .22s ease}.scrim{transition:opacity .2s}}
+@media(max-width:1180px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.body{flex-direction:column}nav.side{width:auto;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:6px}.side .grp,.side .note{display:none}.nv{white-space:nowrap}.g2,.g2e,.g3,.g3w{grid-template-columns:minmax(0,1fr)}.g3w>:first-child{grid-column:auto}main{overflow:visible}.body{min-height:auto}body{height:auto}}
+@media(max-width:600px){.g6{grid-template-columns:repeat(2,minmax(0,1fr))}.page{padding:16px}.ctx{padding:10px 16px}.it{grid-template-columns:minmax(0,1fr) 90px}.it .bar,.it .ar{display:none}.shell .app{display:none}.prog{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:22px}.stk thead{display:none}.stk tr{display:grid;padding-block:8px;border-bottom:1px solid var(--line)}.stk td{display:flex;justify-content:space-between;gap:12px;border:0;padding:3px 10px;text-align:right}.stk td::before{content:attr(data-l);color:var(--mute);text-align:left}}
+</style>
+</head>
+<body>
+<header class="shell">
+  <span class="logo">In<b>c</b>ture</span>
+  <span class="app">AI Consumption Cockpit · Johnson &amp; Johnson</span>
+  <span class="sp"></span>
+  <button class="btn sec" id="setupBtn" style="min-height:32px;padding:5px 12px;background:transparent;color:#fff;border-color:#5a6066">Demo setup</button><span class="badge">Prototype · illustrative data</span>
+  <span class="av" aria-label="Signed in as FinOps lead">FL</span>
+</header>
+<div class="body">
+  <nav class="side" id="nav" aria-label="Pages"></nav>
+  <main id="main">
+    <div class="ctx" id="ctx"></div>
+    <div class="page" id="page"></div>
+  </main>
+</div>
+<div class="setup" id="setup" role="dialog" aria-modal="true" aria-labelledby="suT"><div class="sbox"><div class="shd"><div><h2 id="suT">Set up the demo for J&amp;J</h2><p>Choose the consumption types J&amp;J uses, then how deep J&amp;J wants to monitor each one. Each level shows the phase that delivers it. The demo shows only what you select.</p></div></div><div class="sbd" id="suB"></div><div class="sft" id="suF"></div></div></div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dT" aria-hidden="true">
+  <div class="dh">
+    <button class="ib" id="dBack" aria-label="Back" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4l-6 6 6 6"/></svg></button>
+    <div class="t"><h2 id="dT"></h2><p id="dS"></p></div>
+    <button class="ib" id="dX" aria-label="Close"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+  </div>
+  <div class="db" id="dB"></div>
+</aside>
+<script>
+{
+/* ================= icons & helpers ================= */
+const P=d=>`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">${d}</svg>`;
+const IC={
+api:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
+dev:'<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.6 1.2a4 4 0 0 0-4.3 5.3L1.5 11.3a1.6 1.6 0 1 0 2.2 2.2l4.8-4.8a4 4 0 0 0 5.3-4.3L11.6 6.6 9.4 6.1 8.9 3.9z"/></svg>',
+no:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M3.8 12.2l8.4-8.4"/></svg>',
+lock:P('<rect x="4" y="9" width="12" height="8" rx="1.6"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9"/>'),
+ok:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
+chev:P('<path d="M8 5l5 5-5 5"/>'),
+warn:P('<path d="M10 3l8 14H2z"/><path d="M10 8v4M10 14.5v.5"/>'),
+info:P('<circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.5v.5"/>'),
+cmd:P('<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="4" rx="1"/><rect x="11" y="9" width="6" height="8" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/>'),
+exp:P('<path d="M3 4h14M6 10h11M9 16h8"/><circle cx="4" cy="10" r="1"/><circle cx="7" cy="16" r="1"/>'),
+src:P('<ellipse cx="10" cy="5" rx="6" ry="2.5"/><path d="M4 5v10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5M4 10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5"/>'),
+alc:P('<path d="M10 3v5M10 8l-5 4M10 8l5 4"/><rect x="2" y="12" width="6" height="5" rx="1"/><rect x="12" y="12" width="6" height="5" rx="1"/>'),
+fc:P('<path d="M3 16l5-5 3 3 6-7"/><path d="M13 7h4v4"/>'),
+road:P('<path d="M3 5h8l2 2.5L11 10H3zM9 10h8v5H9z"/><path d="M6 10v7"/>')};
+const ST={api:'API-ready',dev:'Development / mapping',no:'No published API',neu:'Out of scope'};
+const chip=(s,t)=>`<span class="chip ${s}">${IC[s]||''}${t||ST[s]}</span>`;
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const pct=x=>Math.round(x*100)+'%';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= model ================= */
+const PH=[
+ {n:'Phase 0',t:'Discover',w:'2–3 weeks',d:'Baseline from SAP for Me exports and BTP usage',
+  get:['12-month AI Units baseline from SAP for Me exports','Contract view: pool balance, expiry, overage','Consumption by product and feature','Custom AI usage by BTP subaccount via the Usage Data Management API','Landscape inventory: tenants, subaccounts, AI Core instances','Gap and data-source assessment']},
+ {n:'Phase 1',t:'Structural visibility',w:'4–6 weeks',d:'Sector, region and application through account model and labels',
+  get:['BTP account model and mandatory label standard','Automated daily BTP usage feed','Custom AI by sector, region, cost centre and application via resource groups','Premium AI by sector and region through tenant-to-org mapping','Test vs production split where tenants or subaccounts are separate','Validated monthly SAP for Me upload']},
+ {n:'Phase 2',t:'User & app attribution',w:'6–8 weeks',d:'Gateway telemetry, assignments and allocation rules',
+  get:['AI gateway logging tokens per call with user and application','User-level view for per-user packages and custom AI (pseudonymised)','Activity-share allocation for Joule Agents and AI Features','Allocation rules engine with audit trail','Seat hygiene: assigned users with no activity']},
+ {n:'Phase 3',t:'Reconciliation & chargeback',w:'≈4 weeks',d:'Reconcile to SAP statements and post to Controlling',
+  get:['Monthly reconciliation to SAP balance statements','Unallocated units tracked with an owner','Chargeback postings to S/4HANA Controlling','Budgets and threshold alerts by cost owner']}];
+const LV=['J&J','Sector','Region','Cost centre','Application','User'];
+const KEY=[null,'sector','region','cc','app','user'];
+const SC={
+ jp:{nm:'Joule Premium',tag:'per user',m:'AI Units per assigned user per month (tiered; 6.5 at up to 1,000 users)',u:'AI Units',per:6.5,users:560,apps:['S/4HANA Cloud · Joule Premium Finance','S/4HANA Cloud · Joule Premium Supply Chain','SuccessFactors · Joule Premium HCM'],depth:[0,2,5,5],rule:'Assigned users × package rate; user → cost centre from HR master'},
+ jfc:{nm:'Joule for Consultants',tag:'per user',m:'35 AI Units per assigned user per month; overage 2 per 1,000 requests',u:'AI Units',per:35,users:46,apps:['SAP Joule for Consultants'],depth:[0,2,5,5],rule:'35 AI Units × assigned user; pooled overage split by request share'},
+ agt:{nm:'Joule Agents',tag:'per action',m:'AI Units per action executed',u:'AI Units',vol:2450,apps:['Dispute resolution agent','Supplier onboarding agent','Maintenance planning agent'],depth:[0,2,4,4],rule:'SAP’s monthly total split by action share per application'},
+ feat:{nm:'AI Features',tag:'per record',m:'AI Units per request or record (document grounding 0.005 per record)',u:'AI Units',vol:920,apps:['Document grounding · SOP library','Document grounding · Regulatory submissions'],depth:[0,2,4,4],rule:'SAP’s monthly record total split by grounding runs per application'},
+ cus:{nm:'Custom AI on BTP',tag:'tokens',m:'LLM tokens → GenAI tokens → capacity units, billed via BTPEA',u:'CU',vol:1860,apps:['Deviation investigator','Batch record reviewer','Regulatory Q&A assistant','Demand-sensing copilot'],depth:[1,4,5,5],rule:'Resource-group metering; user split from gateway token logs'}};
+const ALL5=['jp','jfc','agt','feat','cus'];let AIU=['jp','jfc','agt','feat'],ALLT=ALL5.slice();
+const STEP={
+ jp:{1:[1,'dev','Tenant → sector/region mapping'],3:[2,'api','IAS user assignments (SCIM) + HR cost-centre mapping']},
+ jfc:{1:[1,'dev','Tenant → sector/region mapping'],3:[2,'api','IAS user assignments (SCIM) + HR cost-centre mapping']},
+ agt:{1:[1,'dev','Tenant → sector/region mapping'],3:[2,'dev','Application activity logs per app and org unit'],5:[9,'no','SAP publishes no per-user metering for agent actions; Joule Analytics is aggregated']},
+ feat:{1:[1,'dev','Tenant → sector/region mapping'],3:[2,'dev','Grounding pipeline logs per application'],5:[9,'no','Metered per record with no user dimension']},
+ cus:{1:[0,'api','Usage Data Management API (subaccount)'],2:[1,'api','AI Core resource groups + BTP labels'],5:[2,'dev','AI gateway per-call token logging']}};
+const gapInfo=(k,l)=>l>CFG.tgt[k]?[-1,'neu',`Outside the chosen scope: J&J monitors ${SC[k].nm} to ${LV[CFG.tgt[k]].toLowerCase()} level`]:stepFor(k,l);
+const stepFor=(sc,l)=>{let b=null;for(const k of Object.keys(STEP[sc]).map(Number).sort((a,b)=>a-b))if(k<=l)b=STEP[sc][k];return b};
+
+let seed=20261125;const rnd=()=>(seed=seed*16807%2147483647)/2147483647;const pick=a=>a[Math.floor(rnd()*a.length)];
+const ORG=[['Innovative Medicine',['North America','EMEA','Asia Pacific'],.44],['MedTech',['North America','EMEA','Asia Pacific','Latin America'],.36],['Enterprise functions',['Global'],.20]];
+const CC=['4102 Supply Chain Planning','4310 Finance Operations','4415 Quality Assurance','4520 R&D Informatics','4630 Commercial Operations','4740 HR Services','4855 Procurement','4960 Manufacturing Systems'];
+const orgPick=()=>{let r=rnd(),o=ORG[0];for(const x of ORG){if(r<x[2]){o=x;break}r-=x[2]}return{sector:o[0],region:pick(o[1])}};
+const LEAF=[];
+for(const k of ALL5){const s=SC[k];
+ if(s.users){for(let i=0;i<s.users;i++){const o=orgPick();const cc=k==='jfc'?pick(['4415 Quality Assurance','4520 R&D Informatics','4960 Manufacturing Systems','4310 Finance Operations']):pick(CC);LEAF.push({sc:k,...o,cc,app:pick(s.apps),user:'U-'+(1000+Math.floor(rnd()*8999)),v:s.per,idle:rnd()<(k==='jfc'?.15:.11)})}}
+ else{const n=k==='cus'?140:90,raw=[];for(let i=0;i<n;i++){const o=orgPick();raw.push({sc:k,...o,cc:pick(CC),app:pick(s.apps),user:'U-'+(1000+Math.floor(rnd()*8999)),v:.2+rnd()**2*3})}
+  const t=raw.reduce((a,b)=>a+b.v,0);raw.forEach(r=>{r.v=r.v/t*s.vol;LEAF.push(r)})}}
+const MON=['Dec 25','Jan 26','Feb 26','Mar 26','Apr 26','May 26','Jun 26','Jul 26','Aug 26','Sep 26','Oct 26','Nov 26'];
+const SER={};for(const k of ALL5){const c=LEAF.filter(l=>l.sc===k).reduce((a,b)=>a+b.v,0);SER[k]=MON.map((m,i)=>i===11?c:c*(.48+.5*i/11)*(.94+rnd()*.1))}
+const POOL=90000;
+const sum=a=>a.reduce((x,y)=>x+y,0);
+const ytd=()=>sum(AIU.map(k=>sum(SER[k].slice(1))));
+const decF=()=>sum(AIU.map(k=>SER[k][11]))*1.04;
+const BUDGET={'Innovative Medicine':38000,'MedTech':30000,'Enterprise functions':16000};
+
+const SRC=[
+ {id:'sfm',nm:'SAP for Me · Business AI tab',st:'no',eff:'Low',p:'AI Units by product → feature, tenant traffic, pool balance and expiry.',tech:['Business AI tab: AI Units by product → feature; functional usage by tenant (CSV/XLS export)','No API for AI Unit consumption found in SAP’s public documentation'],opt:['Use as source: monthly CSV/XLS export, uploaded and validated in the cockpit','Build on it: scheduled export routine owned by J&J’s SAP admin (S-user with Business AI authorisation)','Ask SAP: API roadmap for AI Unit consumption (KBA 3757587 area)'],use:{jp:0,jfc:0,agt:0,feat:0}},
+ {id:'stm',nm:'SAP for Me · balance statements',st:'no',eff:'Low',p:'Opening and closing balance and overage per period (PDF).',tech:['Monthly balance statements, PDF download only'],opt:['Use as source: monthly PDF upload; totals keyed once and checked against the CSV of the same month'],use:{jp:3,jfc:3,agt:3,feat:3}},
+ {id:'udm',nm:'Usage Data Management service API',st:'api',eff:'Low',p:'BTP usage and cost by global account, directory, subaccount and service, including SAP AI Core.',tech:['REST: <code>/reports/v1/monthlyUsage</code>, <code>/reports/v1/subaccountUsage</code>, monthly directory usage, <code>monthlySubaccountsCost</code>','Free service; needs a Cloud Foundry subaccount, an instance and a service key','Validate that per-model and per-resource-group AI Core detail is returned as in the cockpit report'],opt:['Daily pull through SAP Integration Suite into SAP HANA Cloud'],use:{cus:0}},
+ {id:'aic',nm:'SAP AI Core API · resource groups',st:'api',eff:'Low',p:'Resource groups and their labels; the unit SAP reports AI Core usage by.',tech:['AI API admin endpoints for resource groups (create, list, patch labels)','One resource group per application or use case, labelled with app_id and cost_center'],opt:['Read nightly and join to usage by resource group'],use:{cus:1}},
+ {id:'map',nm:'Tenant & subaccount → org mapping',st:'dev',eff:'Medium',p:'Maps SAP tenants and BTP subaccounts to sector and region; enforced through BTP labels.',tech:['Mapping table keyed on tenant ID / subaccount GUID','Checked against BTP directory and subaccount labels (cost_center, sector, env)'],opt:['Build: maintained by the FinOps owner with a monthly completeness check'],use:{jp:1,jfc:1,agt:1,feat:1,cus:1}},
+ {id:'ias',nm:'SAP Cloud Identity Services (SCIM)',st:'api',eff:'Low',p:'Users, groups and per-user package assignments.',tech:['SCIM 2.0 REST: <code>/scim/Users</code>, <code>/scim/Groups</code>','Package assignment by group membership; monthly high-watermark computed in the store'],opt:['Nightly read of assignments'],use:{jp:2,jfc:2}},
+ {id:'hr',nm:'J&J HR / org master',st:'dev',eff:'Medium',p:'User → cost centre, region and sector; source of truth for the hierarchy.',tech:['Interface from J&J’s HR system of record','Pseudonymise user IDs before storage'],opt:['Build: daily delta feed, mapped to IAS user IDs'],use:{jp:2,jfc:2,cus:2}},
+ {id:'gw',nm:'AI gateway token logs',st:'dev',eff:'High',p:'Tokens, model and resource group per call, with user and application.',tech:['CAP service or API Management proxy in front of the orchestration service','Orchestration responses return <code>prompt_tokens</code>, <code>completion_tokens</code>, <code>total_tokens</code>','User from the IAS token; app_id from the calling application'],opt:['Build: mandatory route for all custom AI calls'],use:{cus:2}},
+ {id:'act',nm:'Application activity logs',st:'dev',eff:'High',p:'Agent actions and grounding runs per application and org unit, used as allocation shares.',tech:['Per-application logging or log extraction','Shares split SAP’s monthly feature totals; they never replace them'],opt:['Build: start with the top three agents by volume'],use:{agt:2,feat:2}},
+ {id:'ja',nm:'Joule Analytics Center',st:'no',eff:'Low',p:'Messages, conversations, products and scenarios; aggregated and UI only in public docs.',tech:['Usage across messages, conversations, products, scenarios, interaction and client types','No export or API documented publicly'],opt:['Use as source: monthly scenario counts as a cross-check','Ask SAP: export or API for scenario-level usage'],use:{jp:2,agt:2}},
+ {id:'co',nm:'S/4HANA Controlling · journal entry API',st:'api',eff:'Medium',p:'Posts chargeback amounts to cost centres.',tech:['Standard SAP journal entry posting API','Cost elements and posting cadence agreed with Finance'],opt:['Monthly posting after reconciliation sign-off'],use:{jp:3,jfc:3,agt:3,feat:3,cus:3}}];
+
+/* ================= state ================= */
+const PAGES=[['command-centre','Command centre','cmd'],['explorer','Consumption explorer','exp'],['sources','Data sources','src'],['allocation','Allocation & chargeback','alc'],['budgets','Budgets & pool','fc'],['phases','Delivery phases','road']];
+const S={ph:3,sc:'all',page:'command-centre',by:1,atab:'rules',flags:true};
+try{const r=JSON.parse(localStorage.getItem('aicc3')||'{}');if(r.ph!=null)S.ph=r.ph;if(r.sc)S.sc=r.sc;if(r.flags!=null)S.flags=r.flags}catch(e){}
+const save=()=>{try{localStorage.setItem('aicc3',JSON.stringify({ph:S.ph,sc:S.sc,flags:S.flags}))}catch(e){}};
+const CFG={types:ALL5.slice(),tgt:{jp:5,jfc:5,agt:4,feat:4,cus:5}};
+try{const c=JSON.parse(localStorage.getItem('aiccCfg')||'null');if(c&&c.types&&c.types.length){CFG.types=c.types.filter(k=>SC[k]);Object.assign(CFG.tgt,c.tgt||{})}}catch(e){}
+const maxD=k=>SC[k].depth[3];
+const dep=(k,ph=S.ph)=>Math.min(SC[k].depth[ph],CFG.tgt[k]);
+const needPh=k=>{for(let i=0;i<4;i++)if(SC[k].depth[i]>=CFG.tgt[k])return i;return 3};
+const findSrc=id=>SRC.find(x=>x.id===id);
+const srcRel=(s,k)=>s.use[k]!=null&&(s.id==='co'?CFG.tgt[k]>=3:s.id==='stm'?true:s.use[k]<=needPh(k));
+let SRCV=SRC;
+function applyCfg(){ALLT=ALL5.filter(k=>CFG.types.includes(k));AIU=ALLT.filter(k=>k!=='cus');
+ SRCV=SRC.map(x=>({...x,use:Object.fromEntries(Object.entries(x.use).filter(([k])=>ALLT.includes(k)&&srcRel(x,k)))})).filter(x=>Object.keys(x.use).length);
+ if(S.sc!=='all'&&!ALLT.includes(S.sc))S.sc='all';
+ try{localStorage.setItem('aiccCfg',JSON.stringify(CFG))}catch(e){}}
+const phNeeded=i=>i===0||i===3||ALLT.some(k=>needPh(k)>=i);
+const scs=()=>S.sc==='all'?ALLT:[S.sc];
+const isCU=k=>k==='cus';
+const vh=(v,c)=>v&&c?`${fmt(v)}<small>+ ${fmt(c)} CU</small>`:c?`${fmt(c)}<small>CU</small>`:`${fmt(v)}<small>AI Units</small>`;
+const unit=()=>S.sc==='cus'?'CU':'AI Units';
+const activeSrc=(ks=ALLT)=>SRCV.filter(s=>ks.some(k=>s.use[k]!=null&&s.use[k]<=S.ph));
+const coverage=ks=>{let t=0,a=0;for(const l of LEAF){if(!ks.includes(l.sc))continue;t+=l.v;if(dep(l.sc)>=3)a+=l.v}return t?a/t*(S.ph>=2?.982:1):0};
+const flag=p=>!S.flags||p<0?'':p===10?'<span class="pf p0">Out of scope</span>':p>3?'<span class="pf px">Not possible today</span>':(p>S.ph?`<span class="pf p${p} later" title="Not live yet: arrives in ${PH[p].n}">From ${PH[p].n}</span>`:`<span class="pf p${p}" title="Achieved in ${PH[p].n}: ${PH[p].t}">${PH[p].n}</span>`);
+const lvPh=(ks,l)=>Math.min(...ks.map(k=>{if(l>CFG.tgt[k])return l>maxD(k)?9:10;for(let i=0;i<4;i++)if(dep(k,i)>=l)return i;return 9}));
+const reachPh=k=>{const d=dep(k);for(let i=0;i<4;i++)if(dep(k,i)>=d)return i;return 0};
+const short=s=>({sfm:'SAP for Me export',stm:'SAP for Me statements',udm:'UDM API',aic:'AI Core API',map:'Org mapping',ias:'IAS (SCIM)',hr:'HR master',gw:'AI gateway',act:'App activity logs',ja:'Joule Analytics',co:'S/4HANA posting API'}[s.id]);
+const REG=[];const reg=o=>{REG.push(o);return REG.length-1};
+const $=id=>document.getElementById(id);
+
+/* ================= shared renderers ================= */
+function barChart(svg,data,lab,unitTxt,est=true){
+ const tip=svg.parentElement.querySelector('.tip');
+ const draw=()=>{const W=svg.clientWidth,H=svg.clientHeight;if(!W)return;const L=44,R=6,T=14,B=24;const mx=Math.max(...data)*1.12||1;const e=Math.pow(10,Math.floor(Math.log10(mx)));const inc=mx/e>5?e*2:mx/e>2.5?e:e/2;const tk=[];for(let v=0;v<=mx;v+=inc)tk.push(v);
+  const bw=(W-L-R)/data.length,y=v=>T+(H-T-B)*(1-v/mx);
+  let h=tk.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--mute)">${v>=1000?(v/1000)+'k':v}</text>`).join('');
+  h+=data.map((v,i)=>{const w=Math.min(bw*.62,40),x=L+i*bw+(bw-w)/2,yy=y(v);const tl=W<520&&i%2?'':lab[i].split(' ')[0];
+   return `<path d="M${x},${y(0)}V${yy+3}q0,-3 3,-3h${w-6}q3,0 3,3V${y(0)}z" fill="var(--blue)" opacity="${est&&i===data.length-1?.45:1}"/><text x="${x+w/2}" y="${H-7}" text-anchor="middle" font-size="11" fill="var(--mute)">${tl}</text><rect class="hit" data-i="${i}" x="${L+i*bw}" y="${T}" width="${bw}" height="${H-T-B}" fill="transparent"/>`}).join('');
+  svg.innerHTML=h;
+  svg.querySelectorAll('.hit').forEach(r=>{r.onmouseenter=()=>{const i=+r.dataset.i;tip.style.display='block';tip.textContent=`${lab[i]}: ${fmt(data[i])} ${unitTxt}${est&&i===data.length-1?' (estimate)':''}`;tip.style.left=Math.min(Math.max(L+i*bw+bw/2-70,0),W-150)+'px';tip.style.top=Math.max(y(data[i])-34,0)+'px'};r.onmouseleave=()=>tip.style.display='none'})};
+ const ro=new ResizeObserver(draw);ro.observe(svg);draw()}
+const levelsHtml=ks=>{const mx=Math.max(...ks.map(k=>dep(k)));return `<div class="lv">${LV.map((n,i)=>`<span class="${i<=mx?'ok':''}">${i<=mx?IC.ok:IC.lock}${n} ${i?flag(lvPh(ks,i)):''}</span>`).join('')}</div>`};
+const lockBox=(ph,why)=>`<div class="lock">${IC.lock}<div><b>Available from ${PH[ph].n}: ${PH[ph].t}.</b><br><span style="color:var(--mute)">${why}</span><div style="margin-top:10px"><button class="btn sec" data-ph="${ph}">Preview ${PH[ph].n}</button></div></div></div>`;
+function group(ks,path,child){const lvl=path.length;const inP=LEAF.filter(l=>ks.includes(l.sc)&&path.every((p,i)=>l[KEY[i+1]]===p)&&dep(l.sc)>=lvl);
+ const g={},gap={};let tot=0,totc=0;for(const l of inP){const cu=isCU(l.sc);if(cu)totc+=l.v;else tot+=l.v;if(child<=5&&dep(l.sc)>=child){const k=l[KEY[child]];const o=g[k]=g[k]||{v:0,c:0,n:0,idle:0,t:{}};if(cu)o.c+=l.v;else o.v+=l.v;o.n++;if(l.idle)o.idle++;o.t[l.sc]=(o.t[l.sc]||0)+l.v}else{gap[l.sc]=(gap[l.sc]||0)+l.v}}
+ const sk=o=>(tot?o.v/tot:0)+(totc?o.c/totc:0);return{rows:Object.entries(g).sort((a,b)=>sk(b[1])-sk(a[1])),gap,tot,totc,leaves:inP}}
+const barW=(o,rows)=>{const mv=Math.max(0,...rows.map(r=>r.v)),mc=Math.max(0,...rows.map(r=>r.c));return mv?o.v/mv*100:mc?o.c/mc*100:0};
+
+/* ================= pages ================= */
+const PG={};
+PG['command-centre']=()=>{
+ const now=sum(AIU.map(k=>SER[k][11])),prev=sum(AIU.map(k=>SER[k][10]));const left=POOL-ytd(),end=ytd()+decF(),exp=POOL-end;
+ const cov=coverage(AIU),act=activeSrc(),cnt=s=>act.filter(x=>x.st===s).length;const cusNow=SER.cus[11];
+ const tiles=[
+  ['pool','AI Units pool remaining',fmt(left),`of ${fmt(POOL)} · contract year ends 31 Dec`,`<div class="meter"><i style="width:${left/POOL*100}%"></i></div>`,chip('no','SAP for Me')],
+  ['mtd','Consumed in Nov (estimate)',fmt(now),`${now>=prev?'+':''}${((now/prev-1)*100).toFixed(1)}% vs Oct · AI Units`,'',chip('no','SAP for Me')],
+  ['ytd','AI Units used year to date',fmt(ytd()),'Unused units expire 31 Dec','',chip('no','SAP for Me')],
+  S.ph<2?['cov','Attributed to cost centre or below','—',S.ph===0?'J&J totals only in Phase 0':'Sector and region live; cost centre next','',chip('neu','Not live yet')]:['cov','Attributed to cost centre or below',pct(cov),'Of this month’s AI Units',`<div class="meter"><i style="width:${cov*100}%"></i></div>`,chip('api','Assignments')+chip('dev','Logs')],
+  ...(!ALLT.includes('cus')?[]:[['cus','Custom AI on BTP (Nov)',fmt(cusNow)+' CU',`Lowest level: ${LV[dep('cus')]} · BTPEA, not the pool`,'',chip('api','UDM API')]]),
+  ['int','Integration readiness',`${act.length} sources`,`${cnt('api')} API-ready · ${cnt('dev')} to build · ${cnt('no')} no API`,`<div class="meter"><i style="width:${cnt('api')/act.length*100}%;background:var(--api)"></i><i style="width:${cnt('dev')/act.length*100}%;background:var(--dev)"></i><i style="width:${cnt('no')/act.length*100}%;background:var(--no)"></i></div>`,'']];
+ const types=ALLT.map(k=>({k,v:SER[k][11],p:SER[k][10]}));const mxT=Math.max(1,...types.filter(t=>t.k!=='cus').map(t=>t.v));
+ const al=alerts();
+ const top=group(ALLT,[],1);
+ return `<div class="ph"><div><h1>Command centre</h1><p>November 2026 · ${S.ph===3?'<span class="final">Final view · full project scope</span>':`As of ${PH[S.ph].n}: ${PH[S.ph].t}`} · all consumption types</p></div><button class="ib" data-go="phases" title="What this phase delivers" aria-label="What this phase delivers" style="border:1px solid var(--line);background:var(--surf);color:var(--blueD)">${IC.road}</button></div>
+ <div class="g g6" style="grid-template-columns:repeat(${tiles.length},minmax(0,1fr))">${tiles.map(t=>`<button class="tile" data-open="kpi:${t[0]}"><span class="l" style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start">${t[1]}${flag({pool:0,mtd:0,ytd:0,cov:2,cus:0,int:0}[t[0]])}</span><span class="v">${t[2]}</span><span class="c">${t[3]}</span>${t[4]}<span class="ft">${t[5]}</span></button>`).join('')}</div>
+ <div class="g g2" style="margin-top:14px">
+  <div class="card"><div class="ch"><div><h2>Consumption by type · November ${flag(0)}</h2><p>Click a type for its metric, sources and how far it can be attributed</p></div><button class="lnk" data-go="explorer">Open explorer</button></div>
+   <div class="lst">${types.map(t=>`<button class="it" data-open="type:${t.k}"><span class="nm">${SC[t.k].nm}<small>${SC[t.k].tag} · lowest level ${LV[dep(t.k)]} ${flag(reachPh(t.k))}</small></span><span class="bar">${t.k==='cus'?'<i style="width:0"></i>':`<i style="width:${t.v/mxT*100}%"></i>`}</span><span class="val">${fmt(t.v)}<small>${SC[t.k].u}</small></span><span class="ar">${IC.chev}</span></button>`).join('')}</div>
+   <p style="margin:0;font-size:12px;color:var(--mute)">Custom AI is billed in BTP capacity units, so it isn’t drawn on the AI Units scale.</p></div>
+  <div class="card"><div class="ch"><div><h2>Alerts & actions</h2><p>${al.length} open in this phase</p></div></div><div class="lst">${al.map((a,i)=>`<button class="al" data-open="alert:${i}"><span class="ic sev-${a.s}">${a.s==='i'?IC.info:IC.warn}</span><span><b>${a.t}</b><span>${a.d}</span> ${flag(a.p)}</span><span class="ar" style="color:var(--mute)">${IC.chev}</span></button>`).join('')}</div></div>
+ </div>
+ <div class="g g2" style="margin-top:14px">
+  <div class="card"><div class="ch"><div><h2>AI Units by month ${flag(0)}</h2><p>All AI Units types · lighter bar is the current-month estimate</p></div>${chip('no','SAP for Me CSV')}</div><div class="fig"><svg id="cTrend" role="img" aria-label="AI Units by month"></svg><div class="tip"></div></div></div>
+  <div class="card"><div class="ch"><div><h2>By sector · November ${flag(1)}</h2><p>${S.ph<1?'Needs tenant mapping (Phase 1)':'Click a sector for regions, cost centres and types'}</p></div><button class="lnk" data-go="explorer">Explore</button></div>
+   ${S.ph<1?lockBox(1,'SAP for Me reports by tenant only. A tenant-to-sector mapping splits it.'):`<div class="lst" style="flex:1;justify-content:space-around">${top.rows.map(([k,o])=>{const id=reg({path:[k]});return `<button class="it" data-open="node:${id}"><span class="nm">${esc(k)}<small>Budget ${fmt(BUDGET[k]/12)} / month</small></span><span class="bar"><i style="width:${barW(o,top.rows.map(r=>r[1]))}%"></i></span><span class="val">${vh(o.v,o.c)}</span><span class="ar">${IC.chev}</span></button>`}).join('')}</div>`}</div>
+ </div>
+ <div class="g g3w" style="margin-top:14px">
+  <div class="card"><div class="ch"><div><h2>Integration health</h2><p>Sources live in ${PH[S.ph].n}; faded ones arrive later</p></div><button class="lnk" data-go="sources">All sources</button></div>
+   <div class="g g3 hcg">${['api','dev','no'].map(st=>{const all=SRCV.filter(s=>s.st===st);return `<div class="hc"><h3><span class="chip ${st}">${IC[st]}${ST[st]}</span><span class="k">${all.filter(s=>activeSrc().includes(s)).length}</span></h3>${all.map(s=>`<button class="row ${activeSrc().includes(s)?'':'later'}" data-open="src:${s.id}"><span>${s.nm}</span><span>${S.flags?flag(Math.min(...Object.values(s.use))):''}</span></button>`).join('')}</div>`}).join('')}</div></div>
+  <div class="card"><div class="ch"><div><h2>Delivery progress</h2><p>Select a phase to see the cockpit as it will look then</p></div></div>
+   <div class="prog" style="grid-template-columns:minmax(0,1fr);flex:1;grid-auto-rows:1fr">${PH.map((p,i)=>`<button class="${i===S.ph?'on':i<S.ph?'done':''}" data-ph="${i}"><small>${p.n} · ${p.w}</small><b>${p.t}</b></button>`).join('')}</div>
+</div>
+  <div class="card"><div class="ch"><div><h2>Lowest visible level by type</h2><p>By phase · click a type for detail</p></div></div><div><div class="scroll"><table><thead><tr><th>Type</th>${PH.map(p=>`<th>${p.n.replace('Phase ','P')}</th>`).join('')}</tr></thead><tbody>${ALLT.map(k=>`<tr class="click" data-open="type:${k}" tabindex="0"><td>${SC[k].nm}</td>${PH.map((p,i)=>`<td style="${i===S.ph?'font-weight:700;color:var(--blueD)':i>S.ph?'color:var(--mute)':''}">${LV[dep(k,i)]}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div></div>
+ </div>`};
+PG['command-centre'].after=()=>barChart($('cTrend'),MON.map((m,i)=>sum(AIU.map(k=>SER[k][i]))),MON,'AI Units');
+
+function alerts(){const a=[];
+ a.push({s:'m',t:'November SAP for Me export due',d:'No API: upload the CSV and balance statement by 5 Dec',x:'sfm',p:0});
+ a.push({s:'m',t:`${fmt(POOL-ytd())} AI Units left in the pool`,d:'Unused units expire at contract-year end, 31 Dec',x:'pool',p:0});
+ if(S.ph>=1&&ALLT.includes('agt'))a.push({s:'m',t:'Test tenant consuming premium AI',d:'≈3% of Joule Agents actions come from a QA tenant',x:'test',p:1});
+ if(S.ph>=2&&['jp','jfc'].some(k=>ALLT.includes(k)&&dep(k)>=5)){const idle=LEAF.filter(l=>l.idle&&ALLT.includes(l.sc)).length;a.push({s:'m',t:`${idle} idle per-user seats`,d:`≈${fmt(LEAF.filter(l=>l.idle&&ALLT.includes(l.sc)).reduce((x,y)=>x+y.v,0))} AI Units a month on assigned users with no activity`,x:'seat',p:2})}
+ if(S.ph>=3)a.push({s:'i',t:'1.8% of October unallocated',d:'Unmapped tenant; owner assigned in reconciliation',x:'rec',p:3});
+ if(S.ph>=2&&SRCV.some(x=>x.id==='ja'))a.push({s:'i',t:'Joule Analytics has no published API',d:'Used as a manual cross-check; question raised with SAP',x:'ja',p:2});
+ return a}
+
+PG.explorer=()=>{const ks=scs();const mx=Math.max(...ks.map(k=>dep(k)));if(S.by>5)S.by=1;
+ const opts=LV.slice(1).map((n,i)=>{const l=i+1,ok=l<=mx;const fp=lvPh(ks,l);return `<option value="${l}" ${l===S.by?'selected':''} ${ok?'':'disabled'}>${n}${ok?(S.flags?' · '+(fp>3?'n/a':PH[fp].n):''):' · locked in this phase'}</option>`}).join('');
+ let body;
+ if(mx<1&&Math.max(...ks.map(k=>CFG.tgt[k]))<1)body='<div class="lock">'+IC.info+'<div>J&amp;J chose to monitor these types at J&amp;J level only. Change it in Demo setup.</div></div>';else if(mx<1)body=lockBox(1,'In Phase 0 SAP for Me only gives totals per product and feature. Tenant mapping unlocks sector and region.');
+ else{const by=Math.min(S.by,mx);const g={},gap={};let tot=0,totc=0;
+  for(const l of LEAF){if(!ks.includes(l.sc))continue;const cu=isCU(l.sc);if(cu)totc+=l.v;else tot+=l.v;if(dep(l.sc)>=by){const key=KEY.slice(1,by+1).map(k=>l[k]);const id=key.join('||');const o=g[id]=g[id]||{key,v:0,c:0,n:0,t:{}};if(cu)o.c+=l.v;else o.v+=l.v;o.n++;o.t[l.sc]=(o.t[l.sc]||0)+l.v}else gap[l.sc]=(gap[l.sc]||0)+l.v}
+  const sk=o=>(tot?o.v/tot:0)+(totc?o.c/totc:0);const rows=Object.values(g).sort((a,b)=>sk(b)-sk(a));const lim=by===5?40:rows.length;
+  const two=ks.some(isCU)&&ks.some(k=>!isCU(k));const one=ks.some(isCU)?'CU':'AI Units';const T1=one==='CU'?totc:tot;
+  const numH=two?'<th class="n">AI Units</th><th class="n">Capacity units</th>':`<th class="n">${one}</th><th class="n">Share</th>`;
+  const numC=(v,c)=>two?`<td class="n" data-l="AI Units">${v?fmt(v):'–'}</td><td class="n" data-l="Capacity units">${c?fmt(c):'–'}</td>`:`<td class="n" data-l="${one}">${fmt(one==='CU'?c:v)}</td><td class="n" data-l="Share">${((one==='CU'?c:v)/T1*100).toFixed(1)}%</td>`;
+  body=`<div class="scroll"><table class="stk"><thead><tr><th>${LV[by]}</th><th>Parent</th><th>Types</th>${numH}</tr></thead><tbody>${rows.slice(0,lim).map(r=>{const id=reg({path:r.key});return `<tr class="click" tabindex="0" data-open="node:${id}"><td data-l="${LV[by]}"><b>${esc(r.key[by-1])}</b></td><td data-l="Parent" style="color:var(--mute)">${esc(r.key.slice(0,by-1).join(' › ')||'J&J')}</td><td data-l="Types">${Object.keys(r.t).map(k=>`<span class="chip neu">${SC[k].nm}</span>`).join(' ')}</td>${numC(r.v,r.c)}</tr>`}).join('')}${Object.entries(gap).map(([k,v])=>{const st=gapInfo(k,by);return `<tr class="gap click" tabindex="0" data-open="gap:${k}:${by}"><td data-l="${LV[by]}">Not attributable to ${LV[by].toLowerCase()}</td><td data-l="Parent">${st?chip(st[1]):''} ${st?flag(st[0]):''}</td><td data-l="Types"><span class="chip neu">${SC[k].nm}</span></td>${isCU(k)?numC(0,v):numC(v,0)}</tr>`}).join('')}</tbody></table></div>${rows.length>lim?`<p style="font-size:12px;color:var(--mute);margin:0">Showing top ${lim} of ${rows.length}. Open a row for its detail.</p>`:''}`}
+ return `<div class="ph"><div><h1>Consumption explorer</h1><p>${S.sc==='all'?'All consumption types · AI Units and BTP capacity units shown separately':SC[S.sc].nm+' · '+unit()} · November 2026</p></div><div style="display:flex;gap:8px;align-items:center"><label class="lab" for="by" style="font-size:13px;color:var(--mute)">Group by</label><select id="by">${opts}</select></div></div>
+ <div class="card" style="margin-bottom:14px"><div class="ch"><div><h2>Hierarchy depth ${S.ph===3?'at project end':'in '+PH[S.ph].n}</h2><p>Ticked levels can be reported${S.flags?'; flags show the phase each level arrives in':''}. Open a hatched row to see why it stops.</p></div></div>${levelsHtml(ks)}</div>
+ <div class="card">${body}</div>`};
+PG.explorer.after=()=>{const b=$('by');if(b)b.onchange=()=>{S.by=+b.value;render()}};
+
+PG.sources=()=>{const act=activeSrc();const cnt=s=>SRCV.filter(x=>x.st===s).length;
+ return `<div class="ph"><div><h1>Data sources & integration</h1><p>${SRCV.length} sources · ${act.length} live in ${PH[S.ph].n}</p></div></div>
+ <div class="g g3" style="margin-bottom:14px">${['api','dev','no'].map(s=>`<div class="card"><div class="ch"><div><h2>${chip(s)}</h2><p>${{api:'Standard SAP API exists; integrate and schedule',dev:'Needs development, a mapping table or J&J data',no:'SAP publishes no API: use the export, build around it, or ask SAP'}[s]}</p></div><span style="font-size:26px;font-weight:700">${cnt(s)}</span></div></div>`).join('')}</div>
+ <div class="card"><div class="scroll"><table class="stk"><thead><tr><th>Source</th><th>Status</th><th>Provides</th><th>Used for</th><th>From</th><th>Effort</th></tr></thead><tbody>${SRCV.map(s=>{const f=Math.min(...Object.values(s.use));return `<tr class="click" tabindex="0" data-open="src:${s.id}" style="${f>S.ph?'opacity:.55':''}"><td data-l="Source"><b>${s.nm}</b></td><td data-l="Status">${chip(s.st)}</td><td data-l="Provides" style="color:var(--mute);max-width:360px">${s.p}</td><td data-l="Used for">${Object.keys(s.use).map(k=>SC[k].nm).join(', ')}</td><td data-l="From">${S.flags?flag(f):PH[f].n}</td><td data-l="Effort">${s.eff}</td></tr>`}).join('')}</tbody></table></div></div>`};
+
+PG.allocation=()=>{const ks=scs();const t=S.atab;
+ const tabs=[['rules','Allocation rules',2],['rec','Reconciliation',3],['cb','Chargeback',3]];
+ let body='';
+ if(t==='rules')body=S.ph<2?lockBox(2,'Rules need gateway logs, IAS assignments and application activity logs to split SAP’s totals.'):`<div class="scroll"><table class="stk"><thead><tr><th>Consumption type</th><th>Rule</th><th>Lowest level</th><th>Inputs</th></tr></thead><tbody>${ALLT.map(k=>`<tr class="click" tabindex="0" data-open="rule:${k}"><td data-l="Type"><b>${SC[k].nm}</b></td><td data-l="Rule">${SC[k].rule}</td><td data-l="Lowest level">${LV[dep(k)]} ${flag(reachPh(k))}</td><td data-l="Inputs">${SRCV.filter(s=>s.use[k]!=null&&s.use[k]<=S.ph).map(s=>chip(s.st,short(s))).join(' ')}</td></tr>`).join('')}</tbody></table></div>`;
+ if(t==='rec')body=S.ph<3?lockBox(3,'Reconciliation needs allocation in place and the monthly SAP balance statement.'):(()=>{const rk=S.sc==='all'?(AIU.length?AIU:ALLT):ks;const rows=[6,7,8,9,10].map(i=>{const st=sum(rk.map(k=>SER[k][i]));const un=st*[.041,.033,.027,.022,.018][i-6];return{m:MON[i],st,al:st-un,un,i}});
+  return `<div class="scroll"><table class="stk"><thead><tr><th>Month</th><th class="n">SAP statement (${S.sc==='cus'||!AIU.length?'CU, BTP invoice':'AI Units'})</th><th class="n">Allocated</th><th class="n">Unallocated</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`<tr class="click" tabindex="0" data-open="rec:${r.i}"><td data-l="Month"><b>${r.m}</b></td><td class="n" data-l="Statement">${fmt(r.st)}</td><td class="n" data-l="Allocated">${fmt(r.al)}</td><td class="n" data-l="Unallocated">${fmt(r.un)} (${(r.un/r.st*100).toFixed(1)}%)</td><td data-l="Status">${r.i===10?'<span class="chip dev">Awaiting sign-off</span>':'<span class="chip api">Signed off</span>'}</td></tr>`).join('')}</tbody></table></div>`})();
+ if(t==='cb')body=S.ph<3?lockBox(3,'Chargeback needs reconciled allocations and cost elements agreed with Finance.'):(()=>{const g={};LEAF.filter(l=>ks.includes(l.sc)).forEach(l=>{const k=[l.sector,l.region,l.cc].join('||');const o=g[k]=g[k]||{v:0,c:0};if(isCU(l.sc))o.c+=l.v;else o.v+=l.v});const rows=Object.entries(g).sort((a,b)=>b[1].v-a[1].v||b[1].c-a[1].c);const hasC=ks.some(isCU),hasA=ks.some(k=>!isCU(k));
+  return `<div class="scroll"><table class="stk"><thead><tr><th>Cost centre</th><th>Sector · region</th>${hasA?'<th class="n">AI Units</th><th class="n">At €7 / unit</th>':''}${hasC?'<th class="n">Capacity units</th>':''}<th>Status</th></tr></thead><tbody>${rows.slice(0,15).map(([k,o])=>{const p=k.split('||');const id=reg({path:p,v:o.v,c:o.c});return `<tr class="click" tabindex="0" data-open="cb:${id}"><td data-l="Cost centre"><b>${esc(p[2])}</b></td><td data-l="Sector" style="color:var(--mute)">${esc(p[0])} · ${esc(p[1])}</td>${hasA?`<td class="n" data-l="AI Units">${o.v?fmt(o.v):'–'}</td><td class="n" data-l="Amount">${o.v?'€'+fmt(o.v*7):'–'}</td>`:''}${hasC?`<td class="n" data-l="Capacity units">${o.c?fmt(o.c):'–'}</td>`:''}<td data-l="Status"><span class="chip api">Ready to post</span></td></tr>`}).join('')}</tbody></table></div><p style="font-size:12px;color:var(--mute);margin:0">Top 15 of ${rows.length} cost centres, November estimate. €7 is SAP’s published list example, not J&amp;J’s rate${hasC?'; capacity units are charged at J&amp;J’s BTPEA rate':''}.</p>`})();
+ return `<div class="ph"><div><h1>Allocation & chargeback</h1><p>${S.sc==='all'?'All consumption types':SC[S.sc].nm} · rules, reconciliation to SAP statements and postings to Controlling</p></div></div>
+ <div class="card"><div class="ptabs">${tabs.map(([k,n,p])=>`<button class="${k===t?'on':''}" data-atab="${k}">${p>S.ph?IC.lock:''}${n} ${flag(p)}</button>`).join('')}</div>${body}</div>`};
+
+PG.budgets=()=>{const used=ytd(),left=POOL-used;
+ const sec=Object.keys(BUDGET).map(s=>{const v=LEAF.filter(l=>AIU.includes(l.sc)&&l.sector===s).reduce((a,b)=>a+b.v,0);const ytdS=v/sum(AIU.map(k=>SER[k][11]))*used;return{s,ytd:ytdS,bud:BUDGET[s]*11/12}});
+ return `<div class="ph"><div><h1>Budgets & pool</h1><p>AI Units pool of ${fmt(POOL)} for the contract year ending 31 Dec 2026 · actuals only</p></div></div>
+ <div class="g g6" style="margin-bottom:14px;grid-template-columns:repeat(4,minmax(0,1fr))">${[['Used Jan–Nov',fmt(used)],['Pool remaining',fmt(left)],['Share of pool used',pct(used/POOL)],['Contract year ends','31 Dec 2026']].map(x=>`<div class="tile" style="cursor:default;min-height:96px"><span class="l">${x[0]}</span><span class="v">${x[1]}</span></div>`).join('')}</div>
+ <div class="g g2"><div class="card"><div class="ch"><div><h2>Cumulative AI Units vs pool ${flag(0)}</h2><p>Line: actual consumption · flat line: pool</p></div>${chip('no','SAP for Me')}</div><div class="fig"><svg id="burn" role="img" aria-label="Cumulative AI Units against the pool"></svg><div class="tip"></div></div></div>
+ <div class="card"><div class="ch"><div><h2>Budget by sector, year to date ${flag(3)}</h2><p>Click a sector for its cost centres</p></div></div>${S.ph<3?lockBox(3,'Budgets by sector need reconciled allocations to compare against.'):`<div class="lst">${sec.map(r=>{const id=reg({path:[r.s]});const st=r.ytd>r.bud?'Over budget':r.ytd>r.bud*.9?'Near budget':'Within budget';return `<button class="it" data-open="node:${id}"><span class="nm">${r.s}<small>${st}</small></span><span class="bar"><i style="width:${Math.min(r.ytd/r.bud,1)*100}%;${r.ytd>r.bud?'background:var(--no)':''}"></i></span><span class="val">${pct(r.ytd/r.bud)}<small>${fmt(r.ytd)} of ${fmt(r.bud)}</small></span><span class="ar">${IC.chev}</span></button>`}).join('')}</div>`}</div></div>`};
+PG.budgets.after=()=>{const s=$('burn');if(!s)return;const cum=[];let c=0;for(let i=1;i<12;i++){c+=sum(AIU.map(k=>SER[k][i]));cum.push(c)}
+ const draw=()=>{const W=s.clientWidth,H=s.clientHeight;if(!W)return;const L=48,R=60,T=14,B=24,mx=POOL*1.05;const x=i=>L+(W-L-R)*i/10,y=v=>T+(H-T-B)*(1-v/mx);
+  let h=[0,20000,40000,60000,80000].map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--mute)">${v/1000}k</text>`).join('');
+  h+=`<line x1="${L}" x2="${W-R}" y1="${y(POOL)}" y2="${y(POOL)}" stroke="var(--ink)" stroke-width="1.5"/><text x="${W-R+6}" y="${y(POOL)+4}" font-size="11" fill="var(--ink)">Pool</text>`;
+  h+=`<path d="M${cum.map((v,i)=>`${x(i)},${y(v)}`).join('L')}" fill="none" stroke="var(--blue)" stroke-width="2.5"/><circle cx="${x(10)}" cy="${y(cum[10])}" r="4.5" fill="var(--blue)" stroke="var(--surf)" stroke-width="2"/><text x="${W-R+6}" y="${y(cum[10])+4}" font-size="11" fill="var(--blueD)">${Math.round(cum[10]/1000)}k</text>`;
+  h+=MON.slice(1).map((m,i)=>W<520&&i%2?'':`<text x="${x(i)}" y="${H-7}" text-anchor="middle" font-size="11" fill="var(--mute)">${m.split(' ')[0]}</text>`).join('');
+  s.innerHTML=h};const ro=new ResizeObserver(draw);ro.observe(s);draw()};
+
+PG.phases=()=>`<div class="ph"><div><h1>Delivery phases</h1><p>Each phase adds on the previous one. Open a phase for its scope, sources and outcome.</p></div></div>
+ <div class="g" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">${PH.map((p,i)=>{const srcs=SRCV.filter(s=>Object.values(s.use).includes(i));const need=phNeeded(i);return `<div class="card" style="${i===S.ph?'border:2px solid var(--blue)':''}${need?'':';opacity:.6'}"><div class="ch"><div><p style="margin:0">${p.n} · ${p.w}</p><h2 style="font-size:17px">${p.t}</h2></div>${i===S.ph?`<span class="chip api">${i===3?'Final view':'Selected'}</span>`:''}</div><p style="margin:0;color:var(--mute)">${p.d}</p>${need?'':'<span class="chip neu">Not needed for the selected scope</span>'}<ul style="margin:0;padding-left:18px">${p.get.map(g=>`<li>${g}</li>`).join('')}</ul><div style="display:flex;gap:4px;flex-wrap:wrap">${srcs.map(s=>chip(s.st,short(s))).join('')}</div><div style="display:flex;gap:8px;margin-top:auto;flex-wrap:wrap"><button class="btn" data-ph="${i}">View cockpit in ${p.n}</button><button class="btn sec" data-open="phase:${i}">Details</button></div></div>`}).join('')}</div>`;
+
+/* ================= drawer content ================= */
+const D={stack:[]};
+const OPEN={
+ type:k=>{const s=SC[k];const srcs=SRCV.filter(x=>x.use[k]!=null);const ser=SER[k];const mx=Math.max(...ser);
+  return{t:s.nm,s:s.m,h:`<div class="kv"><div><span>November (estimate)</span><b>${fmt(ser[11])} ${s.u}</b></div><div><span>Lowest level ${S.ph===3?'at project end':'in '+PH[S.ph].n}</span><b>${LV[dep(k)]}</b> ${flag(reachPh(k))}</div></div>
+  <div><h3>Last 12 months</h3><div class="spk">${ser.map((v,i)=>`<i style="height:${v/mx*100}%;${i===11?'opacity:.45':''}" title="${MON[i]}: ${fmt(v)}"></i>`).join('')}</div></div>
+  <div><h3>Attribution depth by phase</h3><div class="scroll"><table><tbody>${PH.map((p,i)=>`<tr><td>${p.n}</td><td><b>${LV[dep(k,i)]}</b></td><td>${(()=>{const st=gapInfo(k,dep(k,i)+1);return dep(k,i)>=CFG.tgt[k]?'<span class="chip api">Target depth reached</span>':dep(k,i)>=5?'<span class="chip api">Full depth</span>':st?`${chip(st[1])} <span style="color:var(--mute);font-size:12px">next: ${st[2]}</span>`:''})()}</td></tr>`).join('')}</tbody></table></div></div>
+  <div><h3>Allocation rule</h3><p style="margin:0">${s.rule}</p></div>
+  <div><h3>Data sources</h3><div class="lst">${srcs.map(x=>`<button class="it" data-open="src:${x.id}" style="grid-template-columns:minmax(0,1fr) auto 18px"><span class="nm">${x.nm}<small>From ${PH[x.use[k]].n}</small></span>${chip(x.st)}<span class="ar">${IC.chev}</span></button>`).join('')}</div></div>
+  <div><button class="btn" data-sc="${k}" data-go="explorer">Explore ${s.nm}</button></div>`}},
+ src:id=>{const s=SRCV.find(x=>x.id===id)||findSrc(id);const f=Math.min(...Object.values(s.use));
+  return{t:s.nm,s:`${ST[s.st]} · from ${PH[f].n} · effort ${s.eff}`,h:`<div>${chip(s.st)}</div><div><h3>What it provides</h3><p style="margin:0">${s.p}</p></div><div><h3>Technical detail</h3><ul>${s.tech.map(x=>`<li>${x}</li>`).join('')}</ul></div><div><h3>${s.st==='no'?'Options: use, modify or build on it':'Integration approach'}</h3><ul>${s.opt.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+  <div><h3>Used for</h3><div class="scroll"><table><tbody>${Object.entries(s.use).map(([k,p])=>`<tr class="click" tabindex="0" data-open="type:${k}"><td>${SC[k].nm}</td><td>${PH[p].n}</td><td>${p<=S.ph?'<span class="chip api">Live</span>':'<span class="chip neu">Later</span>'}</td></tr>`).join('')}</tbody></table></div></div>`}},
+ node:id=>{const n=REG[id];const ks=S.page==='explorer'?scs():S.page==='budgets'?AIU:ALLT;const lvl=n.path.length;const child=lvl+1;const g=group(ks,n.path,child);const rs=g.rows.map(r=>r[1]);
+  const byT={};g.leaves.forEach(l=>byT[l.sc]=(byT[l.sc]||0)+l.v);
+  const kids=child<=5?g.rows.slice(0,child===5?25:50):[];
+  return{t:n.path[lvl-1],s:`${LV[lvl]} · ${['J&J',...n.path.slice(0,-1)].join(' › ')}`,h:`<div class="kv"><div><span>November (estimate)</span><b>${g.tot?fmt(g.tot)+' AI Units':''}${g.tot&&g.totc?'<br>':''}${g.totc?fmt(g.totc)+' CU':''}</b></div><div><span>${lvl===5?'Status':'Children'}</span><b>${lvl===5?(g.leaves.some(l=>l.idle)?'Idle seat':'Active'):g.rows.length}</b></div></div>
+  <div><h3>By consumption type</h3><div class="lst">${Object.entries(byT).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<button class="it" data-open="type:${k}" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 80px 18px"><span class="nm">${SC[k].nm}</span><span class="bar"><i style="width:${v/(isCU(k)?g.totc:g.tot)*100}%"></i></span><span class="val">${fmt(v)}<small>${SC[k].u}</small></span><span class="ar">${IC.chev}</span></button>`).join('')}</div></div>
+  ${child<=5?`<div><h3>${LV[child]}s${child===5?' (pseudonymised)':''} ${flag(lvPh(Object.keys(byT),child))}</h3>${kids.length?`<div class="lst">${kids.map(([k,o])=>{const cid=reg({path:[...n.path,k]});return `<button class="it" data-open="node:${cid}"><span class="nm">${esc(k)}${child===5?`<small>${o.idle?'Assigned, no activity in 30 days':'Active'}</small>`:''}</span><span class="bar"><i style="width:${barW(o,rs)}%"></i></span><span class="val">${vh(o.v,o.c)}</span><span class="ar">${IC.chev}</span></button>`}).join('')}</div>${g.rows.length>kids.length?`<p style="font-size:12px;color:var(--mute);margin:6px 0 0">+ ${g.rows.length-kids.length} more</p>`:''}`:''}
+  ${Object.entries(g.gap).map(([k,v])=>{const st=gapInfo(k,child);return `<div class="lock" style="margin-top:8px">${IC.lock}<div><b>${fmt(v)} ${SC[k].u} of ${SC[k].nm} can’t be split to ${LV[child].toLowerCase()} yet</b><br>${st?chip(st[1])+' '+st[2]+(st[0]<0?'':st[0]<=3?` · ${PH[st[0]].n}`:' · not possible with SAP’s current metering'):''}</div></div>`}).join('')}</div>`:'<div class="lock">'+IC.info+'<div>User is the lowest level. Names resolve only for cost owners with the right role.</div></div>'}`}},
+ gap:a=>{const [k,l]=a.split(':');const st=gapInfo(k,+l);return{t:`${SC[k].nm}: not attributable to ${LV[l].toLowerCase()}`,s:S.ph===3?'Final view':`As of ${PH[S.ph].n}`,h:`<div>${st?chip(st[1]):''}</div><div><h3>Why</h3><p style="margin:0">${st?st[2]:''}.</p></div><div><h3>When it unlocks</h3><p style="margin:0">${st&&st[0]<0?'Not planned. Change the monitoring depth in Demo setup to include it.':st&&st[0]<=3?`${PH[st[0]].n}: ${PH[st[0]].t}`:'Not with SAP’s current metering. Allocate by share at application level instead.'}</p></div>${st&&st[0]>=0&&st[0]<=3&&st[0]>S.ph?`<div><button class="btn" data-ph="${st[0]}">Preview ${PH[st[0]].n}</button></div>`:''}`}},
+ alert:i=>{const a=alerts()[i];const sev={h:'High',m:'Medium',i:'Info'}[a.s];const more={
+   sfm:['SAP for Me has no published API for AI Unit consumption, so the monthly export is the source.','Owner: J&J SAP admin · Due: 5th working day','Validation checks totals against last month and the tenant list.'],
+   pool:['SAP for Me shows the pool balance and units expiring this month and in the next three months.','Action: review planned use cases with owners before the contract year ends.'],
+   test:['Test and QA activity draws AI Units like production (SuccessFactors KBA 3580451).','Action: separate tenants and charge test usage to the project, not the business.'],
+   seat:['Per-user packages bill on assigned users (monthly high-watermark).','Action: remove assignments after 30 days without activity; owner notified automatically.'],
+   rec:['One sandbox tenant is not yet in the org mapping.','Action: add it to the mapping table; unallocated falls to near zero.'],
+   ja:['Joule Analytics Center shows usage by product, scenario and interaction type in the UI only.','Used monthly to sanity-check the activity shares for agents.']}[a.x]||[];
+  return{t:a.t,s:`${sev} · ${PH[S.ph].n}`,h:`<div><span class="chip ${a.s==='h'?'no':a.s==='m'?'dev':'neu'}">${sev}</span></div><div><h3>Detail</h3><ul>${more.map(x=>`<li>${x}</li>`).join('')}</ul></div><div style="display:flex;gap:8px;flex-wrap:wrap">${a.x==='sfm'||a.x==='ja'?`<button class="btn sec" data-open="src:${a.x}">Open source</button>`:''}${a.x==='pool'?'<button class="btn" data-go="budgets">Open budgets & pool</button>':''}${a.x==='rec'?'<button class="btn" data-go="allocation" data-atab="rec">Open reconciliation</button>':''}${a.x==='seat'?'<button class="btn" data-open="type:jp">Joule Premium detail</button>':''}</div>`}},
+ kpi:k=>{const m={pool:['AI Units pool',`From SAP for Me (no API): ${fmt(POOL)} units for the contract year; AI Units expire at the end of each contract year.`,'sfm'],mtd:['Consumed this month','Current-month figures are estimates until SAP finalises the monthly balance statement.','sfm'],ytd:['Used year to date','Sum of monthly AI Units consumption since the contract year started, from SAP for Me exports. Unused units expire at contract-year end.','sfm'],cov:['Attribution coverage','Share of this month’s AI Units attributed to cost centre or below. Per-user packages need IAS assignments plus HR mapping; agents and features need application activity logs.','map'],cus:['Custom AI on BTP','Metered in capacity units from tokens and billed under BTPEA; read through the Usage Data Management API.','udm'],int:['Integration readiness','How every figure in the cockpit arrives: API-ready, needs development or mapping, or no published API.','sfm']}[k];
+  return{t:m[0],s:'Command centre tile',h:`<p style="margin:0">${m[1]}</p><div><h3>Main source</h3><button class="it" data-open="src:${m[2]}" style="grid-template-columns:minmax(0,1fr) auto 18px"><span class="nm">${findSrc(m[2]).nm}</span>${chip(findSrc(m[2]).st)}<span class="ar">${IC.chev}</span></button></div>${k==='int'?'<div><button class="btn" data-go="sources">Open data sources</button></div>':''}${k==='cov'?'<div><button class="btn" data-go="explorer">Open explorer</button></div>':''}`}},
+ rule:k=>({t:`Rule: ${SC[k].nm}`,s:SC[k].m,h:`<div><h3>Rule</h3><p style="margin:0">${SC[k].rule}</p></div><div><h3>Steps</h3><ul><li>Take SAP’s billed total for the month (${k==='cus'?'UDM API':'SAP for Me export'})</li><li>Split by ${k==='jp'||k==='jfc'?'assigned users (high-watermark)':k==='cus'?'resource group, then by gateway token share per user':'activity share per application'}</li><li>Map to cost centre through ${k==='cus'?'labels and HR master':'the HR org master'}</li><li>Book any remainder to “unallocated” with an owner</li></ul></div><div><h3>Audit</h3><p style="margin:0">Each run stores inputs, rule version and output so Finance can trace any posting back to SAP’s statement.</p></div>`}),
+ rec:i=>{const ks=S.sc==='all'?(AIU.length?AIU:ALLT):scs();const st=sum(ks.map(k=>SER[k][i]));const un=st*[.041,.033,.027,.022,.018][i-6];
+  return{t:`Reconciliation · ${MON[i]}`,s:'SAP statement vs allocation',h:`<div class="kv"><div><span>SAP statement</span><b>${fmt(st)}</b></div><div><span>Unallocated</span><b>${fmt(un)}</b></div></div><div><h3>Unallocated by cause</h3><div class="scroll"><table><tbody><tr><td>Tenant not in org mapping</td><td class="n">${fmt(un*.62)}</td></tr><tr><td>Users without HR cost centre</td><td class="n">${fmt(un*.27)}</td></tr><tr><td>Rounding and timing</td><td class="n">${fmt(un*.11)}</td></tr></tbody></table></div></div><div><h3>Sources</h3>${chip('no','SAP for Me statement PDF')} ${chip('dev','Allocation engine')}</div>`}},
+ cb:id=>{const n=REG[id];const isC=!n.v;return{t:n.path[2],s:`${n.path[0]} · ${n.path[1]} · posting preview`,h:`<div class="kv"><div><span>${n.v?'AI Units':'Capacity units'}</span><b>${fmt(n.v||n.c)}</b>${n.v&&n.c?`<span>+ ${fmt(n.c)} CU at BTPEA rate</span>`:''}</div><div><span>Amount</span><b>${isC?'BTPEA rate':'€'+fmt(n.v*7)}</b></div></div><div><h3>Journal entry preview</h3><div class="scroll"><table><thead><tr><th>Line</th><th>Account</th><th>Cost centre</th><th class="n">Amount</th></tr></thead><tbody><tr><td>1</td><td>Internal AI services (debit)</td><td>${esc(n.path[2].split(' ')[0])}</td><td class="n">${isC?'–':'€'+fmt(n.v*7)}</td></tr><tr><td>2</td><td>Central AI pool (credit)</td><td>9000 IT FinOps</td><td class="n">${isC?'–':'−€'+fmt(n.v*7)}</td></tr></tbody></table></div></div><p style="margin:0;font-size:12px;color:var(--mute)">Accounts are placeholders until Finance confirms cost elements. Posted through ${chip('api','S/4HANA journal entry API')}</p><div><button class="btn sec" data-open="node:${reg({path:n.path})}">Open cost centre detail</button></div>`}},
+ phase:i=>{const p=PH[i];const srcs=SRCV.filter(s=>Object.values(s.use).includes(i));return{t:`${p.n}: ${p.t}`,s:p.w,h:`<p style="margin:0">${p.d}</p><div><h3>Deliverables</h3><ul>${p.get.map(g=>`<li>${g}</li>`).join('')}</ul></div><div><h3>New data sources</h3><div class="lst">${srcs.map(x=>`<button class="it" data-open="src:${x.id}" style="grid-template-columns:minmax(0,1fr) auto 18px"><span class="nm">${x.nm}</span>${chip(x.st)}<span class="ar">${IC.chev}</span></button>`).join('')}</div></div><div><h3>Lowest level reached</h3><div class="scroll"><table><tbody>${ALLT.map(k=>`<tr><td>${SC[k].nm}</td><td><b>${LV[dep(k,i)]}</b></td></tr>`).join('')}</tbody></table></div></div><div><button class="btn" data-ph="${i}">View cockpit in ${p.n}</button></div>`}}};
+
+function openD(spec,push){const [kind,...rest]=spec.split(':');const c=OPEN[kind](rest.join(':'));if(!push)D.stack=[];D.stack.push(spec);showD(c)}
+function showD(c){$('dT').textContent=c.t;$('dS').textContent=c.s||'';$('dB').innerHTML=c.h;$('dBack').style.display=D.stack.length>1?'grid':'none';$('drawer').classList.add('on');$('drawer').setAttribute('aria-hidden','false');$('scrim').classList.add('on');$('dB').scrollTop=0;setTimeout(()=>$('dX').focus(),30)}
+function closeD(){$('drawer').classList.remove('on');$('drawer').setAttribute('aria-hidden','true');$('scrim').classList.remove('on');D.stack=[]}
+function back(){D.stack.pop();const spec=D.stack[D.stack.length-1];const [kind,...rest]=spec.split(':');showD(OPEN[kind](rest.join(':')))}
+
+/* ================= demo setup ================= */
+const DRAFT={types:CFG.types.slice(),tgt:{...CFG.tgt}};
+function setupRender(){const need=k=>{for(let i=0;i<4;i++)if(SC[k].depth[i]>=DRAFT.tgt[k])return i;return 3};
+ $('suB').innerHTML=ALL5.map(k=>{const on=DRAFT.types.includes(k);const t=DRAFT.tgt[k];const np=need(k);
+  const srcs=SRC.filter(x=>x.use[k]!=null&&(x.id==='co'?t>=3:x.id==='stm'?true:x.use[k]<=np));
+  return `<div class="su ${on?'':'off'}"><label class="cb"><input type="checkbox" data-sut="${k}" ${on?'checked':''}><span><b>${SC[k].nm}</b><small>${SC[k].m}</small></span></label>
+  <div class="dp"><div class="dseg" role="group" aria-label="Monitoring depth for ${SC[k].nm}">${LV.map((n,i)=>{const lp=(()=>{for(let q=0;q<4;q++)if(SC[k].depth[q]>=i)return q;return 9})();return `<button data-sud="${k}:${i}" class="${i===t?'on':i<t?'in':''}" ${i>maxD(k)?'disabled title="Not possible with SAP’s current metering"':''}>${n}<small>${lp>3?'not possible':'Phase '+lp}</small></button>`}).join('')}</div>
+  <div class="meta" style="display:block">Monitoring to <b style="color:var(--ink)">${LV[t].toLowerCase()} level</b> is delivered in <b style="color:var(--ink)">${PH[np].n}</b>${t>0&&stepFor(k,t)?' through '+stepFor(k,t)[2]:t===0?' from the SAP for Me totals':''}. Pick a shallower level to need an earlier phase.${maxD(k)<5?' User level isn’t possible: SAP meters this type without a user.':''}</div>
+  <div class="meta">${srcs.map(x=>chip(x.st,short(x))).join(' ')}</div></div></div>`}).join('');
+ const sel=ALL5.filter(k=>DRAFT.types.includes(k));const phs=sel.length?Math.max(...sel.map(need)):0;
+ const ss=SRC.filter(x=>sel.some(k=>x.use[k]!=null&&(x.id==='co'?DRAFT.tgt[k]>=3:x.id==='stm'?true:x.use[k]<=need(k))));
+ const c=st=>ss.filter(x=>x.st===st).length;
+ $('suF').innerHTML=`<span style="font-size:13px">${sel.length} of 5 types · your chosen depths are delivered by <b>${PH[phs].n}</b>; Phase 3 adds reconciliation and chargeback · ${ss.length} sources: ${chip('api',c('api')+' API-ready')} ${chip('dev',c('dev')+' to build')} ${chip('no',c('no')+' no API')}</span><span style="margin-left:auto;display:flex;gap:8px"><button class="btn sec" id="suAll">Select all, full depth</button><button class="btn" id="suGo" ${sel.length?'':'disabled style="opacity:.5;pointer-events:none"'}>Start demo</button></span>`;
+ $('suAll').onclick=()=>{DRAFT.types=ALL5.slice();ALL5.forEach(k=>DRAFT.tgt[k]=maxD(k));setupRender()};
+ $('suGo').onclick=()=>{CFG.types=DRAFT.types.slice();Object.assign(CFG.tgt,DRAFT.tgt);applyCfg();$('setup').classList.remove('on');render()}}
+function openSetup(){DRAFT.types=CFG.types.slice();Object.assign(DRAFT.tgt,CFG.tgt);setupRender();$('setup').classList.add('on')}
+$('setup').addEventListener('click',e=>{const c=e.target.closest('[data-sut]');if(c){const k=c.dataset.sut;DRAFT.types=c.checked?[...new Set([...DRAFT.types,k])]:DRAFT.types.filter(x=>x!==k);setupRender();return}
+ const d=e.target.closest('[data-sud]');if(d){const [k,l]=d.dataset.sud.split(':');DRAFT.tgt[k]=+l;if(!DRAFT.types.includes(k))DRAFT.types.push(k);setupRender()}});
+$('setupBtn').onclick=openSetup;
+
+/* ================= frame ================= */
+const SCOPE={'explorer':1,'allocation':1};
+function render(){
+ $('nav').innerHTML='<div class="grp">Cockpit</div>'+PAGES.map(([id,n,ic])=>`<button class="nv ${id===S.page?'on':''}" data-go="${id}" aria-current="${id===S.page?'page':'false'}">${IC[ic]}${n}</button>`).join('')+'<div class="note">Sample data for J&amp;J. Rates follow SAP’s published examples.</div>';
+ $('ctx').innerHTML=`<button class="tg ${S.flags?'on':''}" id="tgF" role="switch" aria-checked="${S.flags}"><span class="sw"></span>Phase flags</button>${SCOPE[S.page]?`<span class="lab" style="margin-left:8px">Consumption type</span><select id="scSel" aria-label="Consumption type">${[...(ALLT.length>1?[['all','All consumption types']]:[]),...ALLT.map(k=>[k,SC[k].nm+' · '+SC[k].tag])].map(([k,n])=>`<option value="${k}" ${k===S.sc?'selected':''}>${n}</option>`).join('')}</select>`:''}<span style="margin-left:auto;font-size:12px;color:var(--mute);display:flex;gap:4px;flex-wrap:wrap">${chip('api','API-ready')} ${chip('dev','Dev / mapping')} ${chip('no','No published API')}${S.flags?' '+[0,1,2,3].map(p=>`<span class="pf p${p}">${PH[p].n}</span>`).join(' '):''}</span>`;
+ REG.length=0;
+ $('page').innerHTML=PG[S.page]()+`<p class="foot">Illustrative sample data, not J&amp;J actuals. Rates follow SAP’s published examples (Joule Premium tiered per user, SAP Joule for Consultants 35 AI Units per user per month, document grounding 0.005 AI Units per record, €7 per AI Unit list example); confirm against J&amp;J’s contract and SAP’s AI Features Guide. “No published API” reflects SAP’s public documentation as of November 2026. User IDs are pseudonymised.</p>`;
+ PG[S.page].after&&PG[S.page].after();
+ $('tgF').onclick=()=>{S.flags=!S.flags;render()};const sel=$('scSel');if(sel)sel.onchange=()=>{S.sc=sel.value;save();render()};
+ save()}
+function route(){const h=location.hash.slice(1);S.page=PAGES.some(p=>p[0]===h)?h:'command-centre';render();$('main').scrollTop=0}
+document.addEventListener('click',e=>{if(e.target.id==='scrim'){closeD();return}
+ const t=e.target.closest('[data-go],[data-ph],[data-open],[data-atab],[data-sc]');if(!t)return;
+ if(t.closest('#dX'))return;
+ const inD=!!t.closest('#drawer');
+ if(t.dataset.sc){S.sc=t.dataset.sc}
+ if(t.dataset.atab){S.atab=t.dataset.atab}
+ if(t.dataset.ph!=null){S.ph=+t.dataset.ph;if(inD)closeD();render();return}
+ if(t.dataset.go){closeD();if(location.hash.slice(1)===t.dataset.go)render();else location.hash=t.dataset.go;return}
+ if(t.dataset.open){openD(t.dataset.open,inD);return}
+ if(t.dataset.atab)render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('drawer').classList.contains('on'))closeD();if(e.key==='Enter'&&e.target.matches('tr[data-open]'))e.target.click()});
+$('dX').onclick=closeD;$('dBack').onclick=back;
+window.addEventListener('hashchange',route);
+applyCfg();route();openSetup();
+}
+</script>
+</body>
+</html>
